@@ -1,11 +1,11 @@
-// (c) 2024 BoraOfficial. All rights reserved.
-
 function startEngine() {
+    console.info("Injected.")
     let isBoardFlipped = document.querySelector(".board").classList.contains("flipped");
+    let myColor = isBoardFlipped ? "b" : "w";
+    let letterNumberMap = { a:1, b:2, c:3, d:4, e:5, f:6, g:7, h:8 };
+    let engineKilled = false;
 
-    let opposition = isBoardFlipped ? "b" : "w";
 
-    let letterNumberMap = { "a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8 }
 
     function replaceLettersWithNumbers(inputString) {
         return inputString.split('').map(char => {
@@ -13,41 +13,192 @@ function startEngine() {
         }).join('');
     }
 
+
+    function removeAllHighlights() {
+        document.querySelectorAll(".bestmove").forEach(e=>e.remove());
+    }
+
+    function stopEngine() {
+        if (engineKilled) return;
+        engineKilled = true;
+        console.log("Stopping engine...");
+        try { engine.terminate(); } catch {}
+        try { movesObserver.disconnect(); } catch {}
+        try { gameoverObserver.disconnect(); } catch {}
+        try { document.removeEventListener('customMessage', customMessageHandler); } catch {}
+        try { if (window.disableAudioMonitor) window.disableAudioMonitor(); } catch {}
+        document
+            .getElementById("progress-stockfish-chessbot")
+            ?.remove();
+        removeAllHighlights();
+        console.log("Engine stopped cleanly.");
+    }
+
+    function replaceLettersWithNumbers(inputString) {
+        return inputString.split('').map(char =>
+            letterNumberMap[char] !== undefined ? letterNumberMap[char] : char
+        ).join('');
+    }
+
+    function flipSquare(square) {
+    const file = square[0];
+    const rank = parseInt(square[1], 10);
+
+    const flippedFile =
+        String.fromCharCode('a'.charCodeAt(0) + (7 - (file.charCodeAt(0) - 'a'.charCodeAt(0))));
+    const flippedRank = 9 - rank;
+
+    return flippedFile + flippedRank;
+}
+
+
     function highlightMove(target) {
+
+        if (engineKilled) return;
+
+        removeAllHighlights();
         let board = document.querySelector("wc-chess-board");
-        let newElm1 = document.createElement('div')
-        newElm1.classList.add("highlight")
-        newElm1.classList.add("bestmove")
-        newElm1.style.outline = "2px dashed red"
-        newElm1.style.backgroundColor = 'transparent'
-        newElm1.style.opacity = "0.5"
-        newElm1.style.transform = `translate(${(replaceLettersWithNumbers(target[0]) - 1) * 100}%, ${700 - (target[1] - 1) * 100}%)`
+
+        if (myColor === "b") {
+            const from = flipSquare(target.slice(0, 2));
+            const to   = flipSquare(target.slice(2, 4));
+            target = from + to;
+        }
+
+        let newElm1 = document.createElement('div');
+        newElm1.classList.add("highlight", "bestmove");
+        newElm1.style.outline = "1px solid red";
+        newElm1.style.backgroundColor = 'transparent';
+        newElm1.style.opacity = "0.5";
+        newElm1.style.transform =
+            `translate(${(replaceLettersWithNumbers(target[0]) - 1) * 100}%, ${700 - (target[1] - 1) * 100}%)`;
         board.appendChild(newElm1);
 
-        let newElm2 = document.createElement('div')
-        newElm2.classList.add("highlight")
-        newElm2.classList.add("bestmove")
-        newElm2.style.backgroundColor = 'transparent'
-        newElm2.style.outline = "2px dashed blue"
-        newElm2.style.opacity = "0.8"
-        newElm2.style.transform = `translate(${(replaceLettersWithNumbers(target[2]) - 1) * 100}%, ${700 - (target[3] - 1) * 100}%)`
+        let newElm2 = document.createElement('div');
+        newElm2.classList.add("highlight", "bestmove");
+        newElm2.style.backgroundColor = 'transparent';
+        newElm2.style.outline = "1px solid red";
+        newElm2.style.opacity = "0.5";
+        newElm2.style.transform =
+            `translate(${(replaceLettersWithNumbers(target[2]) - 1) * 100}%, ${700 - (target[3] - 1) * 100}%)`;
         board.appendChild(newElm2);
     }
 
-    //highlightMove(target)
+    function highlightMoveArrow(target){
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const CELL = 12.5;
 
-    function isEven(num) {
-        return num % 2 === 0;
+        if (myColor === "b") {
+            const from = flipSquare(target.slice(0, 2));
+            const to   = flipSquare(target.slice(2, 4));
+            target = from + to;
+        }
+
+
+        function squareToPoint(square) {
+        const file = square.charCodeAt(0) - 97; // a=0
+        const rank = parseInt(square[1], 10) - 1;
+
+        return {
+            x: (file + 0.5) * CELL,
+            y: 100 - (rank + 0.5) * CELL
+        };
+        }
+
+        function rotation(from, to) {
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+
+            /*if (Math.abs(dx) > Math.abs(dy)) {
+                return dx > 0 ? 270 : 90;
+            } else {
+                return dy > 0 ? 0 : 180;
+            }*/
+            const angle = (Math.atan2(dx, -dy) * 180 / Math.PI)-180;
+            return angle;
+
+        }
+
+        function drawArrow(svg, fromSq, toSq, {
+            color = "rgba(255,170,0,0.8)",
+            opacity = 0.8
+            } = {}) {
+            const from = squareToPoint(fromSq);
+            const to = squareToPoint(toSq);
+
+            const rot = rotation(from, to);
+            const length = Math.hypot(to.x - from.x, to.y - from.y);
+
+            const baseY = from.y + 4.5;
+            const tipY = baseY + length - 6;
+
+            const points = `
+                ${from.x - 1.375} ${baseY},
+                ${from.x - 1.375} ${tipY},
+                ${from.x - 3.25}  ${tipY},
+                ${from.x}         ${tipY + 4.5},
+                ${from.x + 3.25}  ${tipY},
+                ${from.x + 1.375} ${tipY},
+                ${from.x + 1.375} ${baseY}
+            `;
+
+            const poly = document.createElementNS(SVG_NS, "polygon");
+            poly.classList.add("arrow", "bestmove");
+            poly.setAttribute("data-arrow", `${fromSq}${toSq}`);
+            poly.setAttribute("id", `arrow-${fromSq}${toSq}`);
+            poly.setAttribute("points", points.trim());
+            poly.setAttribute(
+                "transform",
+                `rotate(${rot} ${from.x} ${from.y})`
+            );
+
+            poly.style.fill = color;
+            poly.style.opacity = opacity;
+
+            svg.appendChild(poly);
+            return poly;
+            }
+
+            removeAllHighlights()
+            //highlightMove(target)
+            drawArrow(document.getElementsByClassName("coordinates")[0], target[0]+target[1], target[2]+target[3])
     }
 
+    // -------------------------------------------------
+    // STOCKFISH
+    // -------------------------------------------------
 
+        function reportProgress(depth) {
+        const loaderHTML = `<div style="position:relative;top:15px;" class="tooltip-container" id="progress-stockfish-chessbot"><div class="tooltip-text">Depth <depth>0</depth>/${depth}<br><a style="text-decoration:underline;color:#404040;cursor:pointer" onclick='alert("If your computer is not the best, Stockfish may have difficulties calculating high ELOs. Try refreshing the page and lower the ELO on the extension.")'>Too slow?</a><a style="text-decoration:underline;color:#404040;cursor:pointer" onclick="document.body.appendChild(Object.assign(document.createElement('input'), { id: 'recompute', type: 'hidden', value: 'true' }));">Recompute turns</a></div><span class="loader"></span><style>.tooltip-text{visibility:hidden;width:120px;background-color:#8c8b8b;color:#4d4d4d;text-align:center;border-radius:5px;padding:5px;position:absolute;z-index:1;top:12.5%;left:10%;margin-top:-16px;opacity:0;transition:opacity .3s}.tooltip-container:hover .tooltip-text{visibility:visible;opacity:1}.loader{border:2px solid #fff;width:32px;height:32px;background:#ff3d00;border-radius:50%;display:inline-block;position:relative;box-sizing:border-box;animation:rotation 2s linear infinite}.loader::after{content:'';box-sizing:border-box;position:absolute;left:50%;top:50%;border:16px solid;border-color:transparent #fff;border-radius:50%;transform:translate(-50%,-50%)}@keyframes rotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>`;
+      
+      // Append the HTML code to the body
+      document.getElementById("board-layout-main").insertAdjacentHTML("beforeend",loaderHTML);
 
+    }
 
-    //let mutationCounter = 0 - (isBoardFlipped ? 1 : 0);
+    function reportDepthCycle(depth) {
+        console.log("report depth")
+        document.querySelector('#progress-stockfish-chessbot .tooltip-text depth').innerHTML = depth;
+    }
 
-    let mutationCounter = 0
+    const engine = new Worker("/bundles/app/js/vendor/jschessengine/stockfish.asm.1abfa10c.js");
 
-    let board = document.querySelector(".board");
+    engine.onmessage = function(event) {
+        if (engineKilled) return;
+        try {
+            if (event.data.startsWith('bestmove')) {
+                const bestMove = event.data.split(' ')[1];
+                console.log(event.data)
+                if (bestMove) highlightMoveArrow(bestMove);
+            } else if (event.data.startsWith('info')) {
+                console.log(event.data)
+                reportDepthCycle(event.data.match(/depth (\d+)/)[1])
+
+            }
+        } catch (e) { console.error(e); }
+    };
+
+        let board = document.querySelector(".board");
     let pieceMap = {
         "br": "r", // Black rook
         "bn": "n", // Black knight
@@ -118,238 +269,104 @@ function startEngine() {
 
         // Add additional FEN components (turn, castling, en passant, halfmove, fullmove)
 
+        console.info(`getFEN for ${myColor}`)
+
         if (castling) {
-            fen += ` ${opposition} KQkq - 0 1`; // ${opposition} to move, castling available, no en passant, 0 half moves, 1 full move
+            fen += ` ${myColor} KQkq - 0 1`; // ${myColor} to move, castling available, no en passant, 0 half moves, 1 full move
         } else {
-            fen += ` ${opposition} - - 0 1`; // ${opposition} to move, castling unavailable, no en passant, 0 half moves, 1 full move
+            fen += ` ${myColor} - - 0 1`; // ${myColor} to move, castling unavailable, no en passant, 0 half moves, 1 full move
         }
 
         return fen;
     }
 
 
-    function removeAllHighlights() {
-        const elements = document.querySelectorAll(".bestmove");
-        elements.forEach(element => element.remove());
-    }
-
-    function reportProgress(depth) {
-        const loaderHTML = `<div style="position:relative;top:15px;" class="tooltip-container" id="progress-stockfish-chessbot"><div class="tooltip-text">Depth <depth>0</depth>/${depth}<br><a style="text-decoration:underline;color:#404040;cursor:pointer" onclick='alert("If your computer is not the best, Stockfish may have difficulties calculating high ELOs. Try refreshing the page and lower the ELO on the extension.")'>Too slow?</a></div><span class="loader"></span><style>.tooltip-text{visibility:hidden;width:120px;background-color:#8c8b8b;color:#4d4d4d;text-align:center;border-radius:5px;padding:5px;position:absolute;z-index:1;top:12.5%;left:10%;margin-top:-16px;opacity:0;transition:opacity .3s}.tooltip-container:hover .tooltip-text{visibility:visible;opacity:1}.loader{border:2px solid #fff;width:32px;height:32px;background:#ff3d00;border-radius:50%;display:inline-block;position:relative;box-sizing:border-box;animation:rotation 2s linear infinite}.loader::after{content:'';box-sizing:border-box;position:absolute;left:50%;top:50%;border:16px solid;border-color:transparent #fff;border-radius:50%;transform:translate(-50%,-50%)}@keyframes rotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>`;
-      
-      // Append the HTML code to the body
-      document.getElementById("board-layout-main").insertAdjacentHTML("beforeend",loaderHTML);
-
-    }
-
-    function reportDepthCycle(depth) {
-        console.log("report depth")
-        document.querySelector('#progress-stockfish-chessbot .tooltip-text depth').innerHTML = depth;
-    }
-
-    
-
-
-    const engine = new Worker("/bundles/app/js/vendor/jschessengine/stockfish.asm.1abfa10c.js")
-    function postChessApi(data) {
+    function feedStockfish(fen) {
+        if (engineKilled) return;
         const progress = document.getElementById("progress-stockfish-chessbot")
         if (progress === null){
-            reportProgress(data.depth)
+            reportProgress(window.args?.depth || 15)
         } else {
             console.log("Progress element exists.")
             console.log("Visibility visible")
             progress.style.visibility = "visible";
         }
-        console.log(data)
-        engine.postMessage(`position fen ${data.fen}`)
+        engine.postMessage(`position fen ${fen}`)
         engine.postMessage('go wtime 300000 btime 300000 winc 2000 binc 2000');
-        engine.postMessage(`go depth ${data.depth}`)
-
+        engine.postMessage(`go depth ${window.args?.depth || 15}`);
     }
 
-    engine.onmessage = function (event) {
-        console.log(event.data)
-        try {
-            if (event.data.startsWith('bestmove')) {
-                console.log("Visibility hidden")
-                document.getElementById("progress-stockfish-chessbot").style.visibility = "hidden";
-                const bestMove = event.data.split(' ')[1];
-                if (bestMove === undefined) {
-                    console.log(data);
-                    console.error("Stockfish engine errored out. Callback")
-                    console.log(fenPos)
-                    highlightBestMove(false)
-                }
-                highlightMove(bestMove)
-            } else if (event.data.startsWith('info')) {
-                reportDepthCycle(event.data.match(/depth (\d+)/)[1])
-
-            }
-        } catch (e) {
-            console.error("engine.onmessage error: "+e)
-        }
-    }
-
-
-    function highlightBestMove(castling = true) {
-        try {
-            let fenPos = getFEN(castling)
-            postChessApi({ fen: fenPos, depth: window.args.depth})
-        } catch (e) {
-            console.log(data);
-            console.error("Stockfish engine error", e, ". Callback")
-            console.log(fenPos)
-            highlightBestMove(false)
-        }
-    }
-
-    if (!isBoardFlipped) { // white
-        highlightBestMove()
-    }
-
-
-    // Map to store previous square classes for each element
-    const previousSquareClassesMap = new WeakMap();
-
-    // Function to log changes to classes that start with "square-"
-    const logSquareClassChanges = (mutationsList) => {
-        for (const mutation of mutationsList) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                const target = mutation.target;
-                const currentClasses = Array.from(target.classList);
-
-                if (!document.body.contains(target)) {
-                    return;
-                }
-
-                // Check if the class has changed to "element-pool" (piece off board)
-                if (currentClasses.includes('element-pool')) {
-                    return;
-                }
-
-                const squareClasses = currentClasses.filter(className => className.startsWith('square-'));
-
-                // Get the previous square classes from the map
-                const previousSquareClasses = previousSquareClassesMap.get(target) || [];
-
-
-                // Check if there’s a change in square classes
-                if (squareClasses.length !== previousSquareClasses.length ||
-                    !squareClasses.every(cls => previousSquareClasses.includes(cls))) {
-
-                    //alert("mutation")
-                    console.log('Square class changed:', target);
-                    removeAllHighlights()
-                    mutationCounter += 1
-                    console.log(mutationCounter, isEven(mutationCounter))
-                    if (isEven(mutationCounter)) {
-                        setTimeout(highlightBestMove, 600) // wait for animations
-                    }
-                    // Update the previous classes in the map
-                    previousSquareClassesMap.set(target, squareClasses);
-                }
-            }
-        }
-    };
-
-
-    // Create an observer instance
-    const observer = new MutationObserver(logSquareClassChanges);
-
-    // Select all elements with class "piece"
-    const pieces = document.querySelectorAll('.piece');
-
-    // Set observer options for attribute changes
-    const config = {
-        attributes: true, // Observe attribute changes
-    };
-
-    // Observe each piece element and initialize the previous classes map
-    pieces.forEach(piece => {
-        observer.observe(piece, config);
-        const squareClasses = Array.from(piece.classList).filter(className => className.startsWith('square-'));
-        previousSquareClassesMap.set(piece, squareClasses);
+    // -------------------------------------------------
+    // MOVE LIST OBSERVER
+    // -------------------------------------------------
+    const movesObserver = new MutationObserver(() => {
+        console.log("move detected")
+        if (engineKilled) return;
+        console.log("engine alive")
+        const moveElements = document.querySelectorAll(".timestamps-with-base-time .offset-for-annotation-icon");
+        if (!moveElements.length) return;
+        const totalMoves = moveElements.length;
+        const lastMoveByOpponent = (myColor === 'w' && totalMoves % 2 === 0) || (myColor === 'b' && totalMoves % 2 === 1);
+        console.info("your turn")
+        if (lastMoveByOpponent) feedStockfish(getFEN());
     });
 
-    // Optional: If new .piece elements are added dynamically
-    const observerForNewPieces = new MutationObserver((mutationsList) => {
+    const moveListContainer = document.querySelector(".timestamps-with-base-time");
+    if (moveListContainer) movesObserver.observe(moveListContainer, { childList:true, subtree:true });
+
+    // -------------------------------------------------
+    // INITIAL CHECK: EXISTING MOVES OR FIRST MOVE
+    // -------------------------------------------------
+    const initialMoves = document.querySelectorAll(".timestamps-with-base-time .offset-for-annotation-icon");
+    if (initialMoves.length) {
+        console.log("continuing game")
+        const totalMoves = initialMoves.length;
+
+        const lastMoveByOpponent = (myColor === 'w' && totalMoves % 2 === 0) || (myColor === 'b' && totalMoves % 2 === 1);
+        console.info(`Is opponent's turn: ${!lastMoveByOpponent}`)
+        console.info("myColor: ", myColor)
+        console.info("totalMoves: ", totalMoves)
+        if (lastMoveByOpponent) feedStockfish(getFEN());
+    } else if (!isBoardFlipped && myColor==='w') {
+        console.info("First move")
+        feedStockfish(getFEN()); // first move
+    }
+
+
+const wrongTurn = new MutationObserver((mutationsList) => {
+    if (engineKilled) return;
+
+    for (const mutation of mutationsList) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+            // Check if the value of the hidden input has changed
+            const hiddenInput = document.querySelector("input[type='hidden']#recompute");
+            if (hiddenInput && hiddenInput.value === 'true') {
+                console.log("Hidden input value is true.");
+                feedStockfish(getFEN());
+            } else {
+                console.log("Hidden input value is not true.");
+            }
+        }
+    }
+
+    });
+    wrongTurn.observe(document.body, { childList:true, subtree:true });
+
+    // -------------------------------------------------
+    // GAME OVER OBSERVER
+    // -------------------------------------------------
+    const gameoverObserver = new MutationObserver((mutationsList) => {
+        if (engineKilled) return;
         for (const mutation of mutationsList) {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('piece')) {
-                        observer.observe(node, config);
-                        // Initialize the previous classes in the map
-                        const squareClasses = Array.from(node.classList).filter(className => className.startsWith('square-'));
-                        previousSquareClassesMap.set(node, squareClasses);
-                    }
-                });
+            if (mutation.type !== 'childList') continue;
+            if (document.querySelector(".game-over-modal-content")) {
+                stopEngine();
+                alert("The game has ended. The engine has been stopped.");
+                break;
             }
         }
     });
-
-    // Observe the parent of the pieces to catch new additions
-    const parentElement = document.querySelector('.board'); // Change this to the appropriate parent
-    if (parentElement) {
-        observerForNewPieces.observe(parentElement, { childList: true });
-    }
-
-
-
-    // --------------- OBSERVER FOR GAMEOVR EVENT --------------------------
-    const gameoverObserver = new MutationObserver((mutationsList, gameoverObserver) => {
-        // Check each mutation to see if the target element has been added to the DOM
-        for (const mutation of mutationsList) {
-            if (mutation.type === 'childList') {
-                // Look for the element in the document
-                const button = Array.from(document.querySelectorAll(".game-over-buttons-component > .cc-button-secondary > span"))
-                .find(span => span.innerText.includes("New"));
-                
-                // If the element exists, stop observing and take action
-                if (button) {
-                    let buttonText = button.innerText
-                    let minutes = parseInt(buttonText.split(' ')[1]);
-                    
-    
-    
-                    const clockTime = document.querySelectorAll('.clock-time-monospace');
-    
-                    clockTime.forEach(clock => {
-                        clock.innerText = `${minutes}:00`; // return clock to original time
-                    });
-                    gameoverObserver.disconnect();
-                    observer.disconnect(); // disconnect observer for the piece movement detector
-                    
-                    setTimeout(checkIfOnline, 500) // give everything time to settle
-                    checkIfOnline()
-                }
-            }
-        }
-    });
-
-    
-    gameoverObserver.observe(document.body, { childList: true, subtree: true });
-
-}
-function checkIfOnline() {
-    if (location.href.includes("online")) {
-        const clockComponents = document.querySelectorAll('.clock-component');
-
-        if (clockComponents.length > 0) {
-            const observer = new MutationObserver(() => {
-                // Disconnect the observer
-                observer.disconnect();
-
-                // Wait for 500 ms before starting the engine
-                setTimeout(startEngine, 500);
-            });
-
-            // Observe all clock components for changes
-            clockComponents.forEach(clockComponent => {
-                observer.observe(clockComponent, { characterData: true, childList: true, subtree: true });
-            });
-        }
-    } else {
-        startEngine();
-    }
+    gameoverObserver.observe(document.body, { childList:true, subtree:true });
 }
 
-checkIfOnline()
+setTimeout(startEngine, 500);
