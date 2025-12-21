@@ -1,5 +1,3 @@
-// (c) 2024 BoraOfficial. All rights reserved.
-
 function fadeInAndOut() {
   const element = document.getElementById('icons8');
 
@@ -149,10 +147,15 @@ document.getElementById("scan-start").addEventListener("click", () => {
             args: [args]
         });
 
-          chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ['engine.js']
-          });
+
+chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ['engine.js']
+});
+
+
+
+
       } else {
           // Optionally, alert the user if the tab is not a chess.com page
           alert("This is not a chess.com page.");
