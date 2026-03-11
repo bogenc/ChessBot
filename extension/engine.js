@@ -1,18 +1,10 @@
 function startEngine() {
     console.info("Injected.")
+    document.documentElement.setAttribute('data-chessbot-engine-stop', 'false');
     let isBoardFlipped = document.querySelector(".board").classList.contains("flipped");
     let myColor = isBoardFlipped ? "b" : "w";
-    let letterNumberMap = { a:1, b:2, c:3, d:4, e:5, f:6, g:7, h:8 };
     let engineKilled = false;
-
-
-
-    function replaceLettersWithNumbers(inputString) {
-        return inputString.split('').map(char => {
-            return letterNumberMap[char] !== undefined ? letterNumberMap[char] : char;
-        }).join('');
-    }
-
+    let castling = true;
 
     function removeAllHighlights() {
         document.querySelectorAll(".bestmove").forEach(e=>e.remove());
@@ -34,12 +26,6 @@ function startEngine() {
         console.log("Engine stopped cleanly.");
     }
 
-    function replaceLettersWithNumbers(inputString) {
-        return inputString.split('').map(char =>
-            letterNumberMap[char] !== undefined ? letterNumberMap[char] : char
-        ).join('');
-    }
-
     function flipSquare(square) {
     const file = square[0];
     const rank = parseInt(square[1], 10);
@@ -50,39 +36,6 @@ function startEngine() {
 
     return flippedFile + flippedRank;
 }
-
-
-    function highlightMove(target) {
-
-        if (engineKilled) return;
-
-        removeAllHighlights();
-        let board = document.querySelector("wc-chess-board");
-
-        if (myColor === "b") {
-            const from = flipSquare(target.slice(0, 2));
-            const to   = flipSquare(target.slice(2, 4));
-            target = from + to;
-        }
-
-        let newElm1 = document.createElement('div');
-        newElm1.classList.add("highlight", "bestmove");
-        newElm1.style.outline = "1px solid red";
-        newElm1.style.backgroundColor = 'transparent';
-        newElm1.style.opacity = "0.5";
-        newElm1.style.transform =
-            `translate(${(replaceLettersWithNumbers(target[0]) - 1) * 100}%, ${700 - (target[1] - 1) * 100}%)`;
-        board.appendChild(newElm1);
-
-        let newElm2 = document.createElement('div');
-        newElm2.classList.add("highlight", "bestmove");
-        newElm2.style.backgroundColor = 'transparent';
-        newElm2.style.outline = "1px solid red";
-        newElm2.style.opacity = "0.5";
-        newElm2.style.transform =
-            `translate(${(replaceLettersWithNumbers(target[2]) - 1) * 100}%, ${700 - (target[3] - 1) * 100}%)`;
-        board.appendChild(newElm2);
-    }
 
     function highlightMoveArrow(target){
         const SVG_NS = "http://www.w3.org/2000/svg";
@@ -119,10 +72,12 @@ function startEngine() {
 
         }
 
+        // reverse engineered from chess.com's official arrow function
         function drawArrow(svg, fromSq, toSq, {
             color = "rgba(255,170,0,0.8)",
             opacity = 0.8
             } = {}) {
+            
             const from = squareToPoint(fromSq);
             const to = squareToPoint(toSq);
 
@@ -159,8 +114,8 @@ function startEngine() {
             return poly;
             }
 
-            removeAllHighlights()
-            //highlightMove(target)
+            // removed redundant function, highlights already removed at move detection
+            //removeAllHighlights()
             drawArrow(document.getElementsByClassName("coordinates")[0], target[0]+target[1], target[2]+target[3])
     }
 
@@ -169,7 +124,61 @@ function startEngine() {
     // -------------------------------------------------
 
         function reportProgress(depth) {
-        const loaderHTML = `<div style="position:relative;top:15px;" class="tooltip-container" id="progress-stockfish-chessbot"><div class="tooltip-text">Depth <depth>0</depth>/${depth}<br><a style="text-decoration:underline;color:#404040;cursor:pointer" onclick='alert("If your computer is not the best, Stockfish may have difficulties calculating high ELOs. Try refreshing the page and lower the ELO on the extension.")'>Too slow?</a><a style="text-decoration:underline;color:#404040;cursor:pointer" onclick="document.body.appendChild(Object.assign(document.createElement('input'), { id: 'recompute', type: 'hidden', value: 'true' }));">Recompute turns</a></div><span class="loader"></span><style>.tooltip-text{visibility:hidden;width:120px;background-color:#8c8b8b;color:#4d4d4d;text-align:center;border-radius:5px;padding:5px;position:absolute;z-index:1;top:12.5%;left:10%;margin-top:-16px;opacity:0;transition:opacity .3s}.tooltip-container:hover .tooltip-text{visibility:visible;opacity:1}.loader{border:2px solid #fff;width:32px;height:32px;background:#ff3d00;border-radius:50%;display:inline-block;position:relative;box-sizing:border-box;animation:rotation 2s linear infinite}.loader::after{content:'';box-sizing:border-box;position:absolute;left:50%;top:50%;border:16px solid;border-color:transparent #fff;border-radius:50%;transform:translate(-50%,-50%)}@keyframes rotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>`;
+            const loaderHTML = `<div style="position:relative;top:15px;" class="tooltip-container" id="progress-stockfish-chessbot">
+                <div class="tooltip-text">
+                    Depth
+                    <depth>0</depth>/${depth}<br>
+                    <a style="text-decoration:underline;cursor:pointer" onclick="document.documentElement.setAttribute('data-chessbot-engine-stop', 'true');">Stop</a>
+                </div>
+                <span class="loader"></span>
+            <style>
+                .tooltip-text {
+                    visibility: hidden;
+                    width: 120px;
+                    background-color: #3c3a37;
+                    color: #8c8b8b;
+                    text-align: center;
+                    border-radius: 5px;
+                    padding: 5px;
+                    position: absolute;
+                    z-index: 1;
+                    top: 12.5%;
+                    left: 19%;
+                    font-size: smaller;
+                    margin-top: -16px;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                }
+                .tooltip-container:hover .tooltip-text {
+                    visibility: visible;
+                    opacity: 1;
+                }
+                .loader { /* loader from https://cssloaders.github.io/ */
+                    width: 5.5px;
+                    height: 12px;
+                    display: block;
+                    left: 5.5%;
+                    position: relative;
+                    border-radius: 4px;
+                    box-sizing: border-box;
+                    animation: animloader 1s linear infinite alternate;
+                    }
+
+
+                    @keyframes animloader {
+                    0% {
+                        box-shadow: 20px 0 rgba(255, 255, 255, 0.25), 30px 0 white, 40px 0 white;
+                    }
+                    50% {
+                        box-shadow: 20px 0 white, 30px 0 rgba(255, 255, 255, 0.25), 40px 0 white;
+                    }
+                    100% {
+                        box-shadow: 20px 0 white, 30px 0 white, 40px 0 rgba(255, 255, 255, 0.25);
+                    }
+                }
+    
+                   
+            </style>`;
       
       // Append the HTML code to the body
       document.getElementById("board-layout-main").insertAdjacentHTML("beforeend",loaderHTML);
@@ -214,7 +223,7 @@ function startEngine() {
         "wp": "P", // White pawn
     };
 
-    function getFEN(castling = true) {
+    function getFEN() {
         let fen = '';
 
         // Get all pieces
@@ -291,6 +300,13 @@ function startEngine() {
             console.log("Visibility visible")
             progress.style.visibility = "visible";
         }
+
+        // Map stance to Stockfish Contempt: 0=defensive (-150), 1=neutral (0), 2=aggressive (150)
+        const stanceContemptMap = { '0': -150, '1': 0, '2': 150 };
+        const stance = window.args?.stance ?? '1';
+        const contempt = stanceContemptMap[stance] ?? 0;
+        engine.postMessage(`setoption name Contempt value ${contempt}`);
+
         engine.postMessage(`position fen ${fen}`)
         engine.postMessage('go wtime 300000 btime 300000 winc 2000 binc 2000');
         engine.postMessage(`go depth ${window.args?.depth || 15}`);
@@ -302,22 +318,52 @@ function startEngine() {
     const movesObserver = new MutationObserver(() => {
         console.log("move detected")
         if (engineKilled) return;
+        // stop engine manually
+        if (document.documentElement.getAttribute('data-chessbot-engine-stop') === 'true') {
+            stopEngine();
+        }
+
         console.log("engine alive")
-        const moveElements = document.querySelectorAll(".timestamps-with-base-time .offset-for-annotation-icon");
+        // remove all highlights (prepare for next highlight)
+        removeAllHighlights()
+        // Get every move in move list (Cross compatible with bots, coach & online gameplay)
+        const moveElements = document.querySelectorAll("wc-simple-move-list div[data-node]")
         if (!moveElements.length) return;
         const totalMoves = moveElements.length;
         const lastMoveByOpponent = (myColor === 'w' && totalMoves % 2 === 0) || (myColor === 'b' && totalMoves % 2 === 1);
         console.info("your turn")
-        if (lastMoveByOpponent) feedStockfish(getFEN());
+
+        // CASTLING AVAILABILITY CHECK
+        if (castling) {
+
+            // get all moves with piece prefix (e.g Kf7)
+            const allMoves = [...moveElements].map(el => {
+                const piece = el.querySelector(':scope > .icon-font-chess[data-figurine]')?.dataset.figurine || '';
+                return piece + el.textContent.trim();
+            });
+
+            // only save moves made by you
+            const filtered = allMoves.filter((_, i) => i % 2 === (myColor === "w" ? 1 : 0));
+
+
+            // if king has moved or already castled 
+            if (filtered.some(v => v.startsWith("K")) || "O-O" in filtered || "O-O-O" in filtered) {
+                castling = false;
+            }
+        }
+
+
+        // allow 200ms for animations to settle
+        if (lastMoveByOpponent) setTimeout(() => feedStockfish(getFEN()), 200);
     });
 
-    const moveListContainer = document.querySelector(".timestamps-with-base-time");
+    const moveListContainer = document.querySelector("wc-simple-move-list");
     if (moveListContainer) movesObserver.observe(moveListContainer, { childList:true, subtree:true });
 
     // -------------------------------------------------
     // INITIAL CHECK: EXISTING MOVES OR FIRST MOVE
     // -------------------------------------------------
-    const initialMoves = document.querySelectorAll(".timestamps-with-base-time .offset-for-annotation-icon");
+    const initialMoves = document.querySelectorAll("wc-simple-move-list div[data-node]");
     if (initialMoves.length) {
         console.log("continuing game")
         const totalMoves = initialMoves.length;
@@ -332,25 +378,6 @@ function startEngine() {
         feedStockfish(getFEN()); // first move
     }
 
-
-const wrongTurn = new MutationObserver((mutationsList) => {
-    if (engineKilled) return;
-
-    for (const mutation of mutationsList) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
-            // Check if the value of the hidden input has changed
-            const hiddenInput = document.querySelector("input[type='hidden']#recompute");
-            if (hiddenInput && hiddenInput.value === 'true') {
-                console.log("Hidden input value is true.");
-                feedStockfish(getFEN());
-            } else {
-                console.log("Hidden input value is not true.");
-            }
-        }
-    }
-
-    });
-    wrongTurn.observe(document.body, { childList:true, subtree:true });
 
     // -------------------------------------------------
     // GAME OVER OBSERVER

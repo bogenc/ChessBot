@@ -2,6 +2,9 @@
 <html>
 <head>
   <title>ChessBot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div style="max-width: 100%;max-height:100%;margin-top: 0;">
@@ -10,82 +13,187 @@
         <h1 class="font-bold" style="font-size: 30px;">ChessBot</h1>
     </div>
 
-    <p style="font-size: 12px;text-align: center;">Real-time stockfish analyzer for <a href="https://www.chess.com" target="_blank" style="color: #65686d;">chess.com</a></p>
+    <p style="font-size: 12px;text-align: center;margin-top: -7px;">Real-time stockfish analyzer for <a href="https://www.chess.com" target="_blank" style="color: #65686d;">chess.com</a></p>
   
     <center>
-      <div style="border: 1px solid #00000050;border-radius: 5px;width: 80%;font-size: 12px;">
+      <div style="border: 1px solid #00000050;border-radius: 5px;width: 80%;font-size: 12px;margin-top: 7px;">
       
-        <div style="display: flex; align-items: center;justify-content: center;">
-          <label for="inject" style="display: inline-flex; position: relative; align-items: center; cursor: pointer;margin-top: 6px;margin-right: 18px;">
-            <input type="checkbox" id="inject" class="sr-only">
-            <div class="toggle-bg" style="width: 2.5rem; height: 1.5rem; background-color: #D1D5DB; border-radius: 9999px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);">
-            </div>
-            <div class="toggle-dot" style="width: 1rem; height: 1rem; background-color: #FFFFFF; border-radius: 9999px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); position: absolute; left: 0.25rem; transition: transform 0.2s ease-in-out;">
-            </div>
-          </label> <span style="margin-top: 6px;margin-right: 25px;">Engage the engine</span>
+        <div style="margin-top: 8px; margin-bottom: 2px;">
+          <div class="stance-picker" id="stance-picker" data-selected="1">
+            <button class="stance-btn" data-index="0">
+              <span class="stance-label" style="padding-left: 4px;">Defensive</span>
+            </button>
+            <button class="stance-btn" data-index="1">
+              <span class="stance-label">Neutral</span>
+            </button>
+            <button class="stance-btn" data-index="2">
+              <span class="stance-label" style="padding-right: 4px;">Offensive</span>
+            </button>
+          </div>
         </div>
 
-        <div style="margin-top: 10px;transform: translateX(-14px);">
-          <input type="range" min="2" max="40" value="20" class="slider-color" id="elo-range">
-          <span id="elo" style="margin-left: 15px;">ELO: 3200</span>
+        <hr style="
+            opacity: .2;
+            margin-top: 8px;
+        ">
+
+        <div style="display: flex; align-items: center; gap: 4px;justify-content: center;padding-left: 8px;padding-right: 8px; margin-bottom: 8px;flex-direction: column;">
+          <span id="elo" style="margin-right: 7px;">Engine ELO: 2600</span>
+          <input type="range" min="1" max="40" value="16" class="slider-color" id="elo-range">
         </div>
       </div>
 
-      <button class="btn-chess" id="scan-start" disabled="true" style="margin-top: 1rem;">Scan Board</button>
-      <small style="white-space: nowrap;opacity: .7;font-size: 10px;">Only click "Scan Board" when it is your turn.<br><span id="icons8" style="white-space: nowrap;transition: opacity 2s;opacity:0;font-size: 10px;color: rgb(134, 134, 134);top: -7px;position: relative;">Green pawn icon by <a href="https://icons8.com" target="_blank" style="color: rgb(157, 156, 156) !important;">Icon8</a></span></small>
-
+      <button class="btn-chess" id="scan-start" style="margin-top: 0.7rem;">Scan Board</button>
     </center>
   </div>
 
-
-
   <script src="popup.js"></script>
+
   <style>
+    html {
+      line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+      -moz-tab-size: 4;
+      tab-size: 4;
+      font-feature-settings: normal;
+      font-variation-settings: normal;
+      -webkit-tap-highlight-color: transparent
+    }
+  
+    blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre { margin: 0 }
+    
     body {
       user-select: none;
       background-color: #FFF4E9;
       width: 225px;
-      height: 200px;
-      font-family: 'Times New Roman', Times, serif;
+      height: 100%;
+      padding-bottom: 12.5px;
+      font-family: 'Crimson Text', 'Times New Roman', serif;
+      font-weight: 600;
       margin: 0;
       line-height: inherit
     }
-  
+
+    /* ── Stance Picker ── */
+    .stance-picker {
+      position: relative;
+      display: flex;
+      margin: 0 6px;
+      background: #ede4d8;
+      border: 1px solid #c8b89a;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 36px;
+    }
+
+    /* Sliding thumb */
+    .stance-picker::before {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: calc((100% - 6px) / 3);
+      height: calc(100% - 6px);
+      border-radius: 3px;
+      background: var(--thumb-bg, linear-gradient(180deg, #81b64c 0%, #6dac56 100%));
+      box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #d8fa9d, transparent 60%),
+        inset 0 -1px 0 #45753c,
+        0 1px 3px rgba(0,0,0,0.15);
+      transition:
+        left 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+        background 0.25s ease;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .stance-picker[data-selected="0"]::before { left: 3px; --thumb-bg: linear-gradient(180deg, #7bb95e 0%, #5d9948 100%); }
+    .stance-picker[data-selected="1"]::before { left: calc((100% - 6px) / 3 + 3px); --thumb-bg: linear-gradient(180deg, #babab9 0%, #979793 100%); }
+    .stance-picker[data-selected="2"]::before { left: calc((100% - 6px) / 3 * 2 + 3px); --thumb-bg: linear-gradient(180deg, #c0622a 0%, #a84e1e 100%); }
+
+    .stance-btn {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 1;
+      color: #8a7a66;
+      font-family: 'Crimson Text', serif;
+      font-weight: 600;
+      font-size: 11px;
+      padding: 0;
+      transition: color 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .stance-btn:active { transform: scale(0.96); }
+
+    /* Divider lines */
+    .stance-btn + .stance-btn::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 20%;
+      height: 60%;
+      width: 1px;
+      background: #c8b89a;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    /* Hide divider adjacent to active selection */
+    .stance-picker[data-selected="0"] .stance-btn:nth-child(2)::before,
+    .stance-picker[data-selected="1"] .stance-btn:nth-child(2)::before,
+    .stance-picker[data-selected="1"] .stance-btn:nth-child(3)::before,
+    .stance-picker[data-selected="2"] .stance-btn:nth-child(3)::before {
+      opacity: 0;
+    }
+
+    .stance-icon { font-size: 11px; line-height: 1; }
+    .stance-label { line-height: 1; }
+
+    /* Active label highlight */
+    .stance-picker[data-selected="0"] .stance-btn:nth-child(1),
+    .stance-picker[data-selected="1"] .stance-btn:nth-child(2),
+    .stance-picker[data-selected="2"] .stance-btn:nth-child(3) {
+      color: #fff;
+    }
+
+    /* ── Original styles ── */
     .btn-chess {
-      background-color: #81b64c;
+      background: linear-gradient(180deg, #81b64c 0%, #7bb964 70%, #6dac56 100%);
+      box-shadow: inset 0 .1rem 0 0 color-mix(in srgb, #d8fa9d,transparent 60%),inset 0 .2rem .4rem 0 color-mix(in srgb, #b2e068,transparent 50%),inset 0 -.1rem 0 0 #45753c,inset 0 -.2rem .4rem 0 color-mix(in srgb, #45753c,transparent 50%),0 .1rem .2rem 0 rgba(0,0,0,.14),0 .2rem .4rem 0 rgba(0,0,0,.1);
       width: 80%;
       height: 1.75rem;
       border: none;
       border-radius: 5px;
+      font-family: 'Crimson Text', serif;
+      font-weight: 600;
+      cursor: pointer;
     }
   
-    .btn-chess:disabled {
-      background-color: #cccccc;
-      color: #666666;
-      cursor: not-allowed;
+    .btn-chess:hover {
+      background: linear-gradient(180deg,color-mix(in srgb, #b2e068,transparent 50%) 0%,transparent 100%),linear-gradient(180deg, #81b64c 0%, #7bb964 70%, #6dac56 100%);
     }
-  
-    .btn-chess:not(:disabled):hover {
-      /* Only non-disabled buttons will have hover styles */
-      background-color: #a3d160;
-    }
-  
-  
-    .btn-chess:not(:disabled):active {
-      background-color: #79a848;
-    }
+
+    .btn-chess:active { box-shadow: none; }
   
     .slider-color {
       -webkit-appearance: none;
-      width: 40%;
+      width: 90%;
       height: 12px;
       border-radius: 5px;
-      background: #80b54b;
+      background: linear-gradient(180deg, #81b64c 0%, #5d9948 100%);
+      box-shadow: inset 0 .1rem 0 0 color-mix(in srgb, #d8fa9d,transparent 60%),inset 0 .2rem .4rem 0 color-mix(in srgb, #b2e068,transparent 50%),inset 0 -.1rem 0 0 #45753c,inset 0 -.2rem .4rem 0 color-mix(in srgb, #45753c,transparent 50%),0 .1rem .2rem 0 rgba(0,0,0,.14),0 .2rem .4rem 0 rgba(0,0,0,.1);
       outline: none;
-      -webkit-transition: opacity .15s ease-in-out;
       transition: opacity .15s ease-in-out;
+      padding-left: 2px;
     }
-  
   
     .slider-color::-webkit-slider-thumb {
       -webkit-appearance: none;
@@ -99,7 +207,6 @@
     }
   
     .slider-color::-moz-range-thumb {
-      -webkit-appearance: none;
       width: 16px;
       height: 16px;
       border: 0;
@@ -107,64 +214,6 @@
       background: #ffffff;
       cursor: pointer;
       border: 1.5px solid #80b54b;
-    }
-  
-    /* Custom styles to animate the toggle */
-    #inject:checked~.toggle-bg {
-      background-color: #80b54b !important;
-      /* Change color when checked */
-    }
-  
-    #inject:checked~.toggle-dot {
-      transform: translateX(100%);
-      /* Move the dot when checked */
-    }
-  
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border-width: 0
-    }
-  
-    ::after,
-    ::before {
-      box-sizing: border-box;
-      border-width: 0;
-      border-style: solid;
-      border-color: #e5e7eb
-    }
-  
-    html {
-      line-height: 1.5;
-      -webkit-text-size-adjust: 100%;
-      -moz-tab-size: 4;
-      tab-size: 4;
-      font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-      font-feature-settings: normal;
-      font-variation-settings: normal;
-      -webkit-tap-highlight-color: transparent
-    }
-  
-    blockquote,
-    dd,
-    dl,
-    figure,
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6,
-    hr,
-    p,
-    pre {
-      margin: 0
     }
   </style>
 </body>
