@@ -1,7 +1,15 @@
 # <img src="extension/icon.png" width="28" height="28" /> ChessBot
+![DAU](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Faddons.mozilla.org%2Fapi%2Fv5%2Faddons%2Faddon%2Fchessbot%2F&query=%24.average_daily_users&label=daily%20active%20users&color=2ea44f)
+![Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Faddons.mozilla.org%2Fapi%2Fv5%2Faddons%2Faddon%2Fchessbot%2F&query=%24.weekly_downloads&label=weekly%20downloads&color=blue)
+![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Faddons.mozilla.org%2Fapi%2Fv5%2Faddons%2Faddon%2Fchessbot%2F&query=%24.current_version.version&label=version&color=orange)
+
 Real-time stockfish chess analyzer browser extension for [chess.com](https://www.chess.com)
 
-See ![demo video here](https://github.com/bogenc/ChessBot/raw/refs/heads/main/assets/demo.mp4).
+
+
+https://github.com/user-attachments/assets/c03eb3d6-8c9c-4524-868a-8d2fba2fe480
+
+
 
 # Browser Compatability
 
