@@ -16,7 +16,7 @@
         "default_popup": "popup.html"
     },
     "web_accessible_resources": [{
-        "resources": ["engine.js"],
+        "resources": ["engine.js", "analytics.js"],
         "matches": ["https://*.chess.com/*"]
     }],
     "browser_specific_settings": {

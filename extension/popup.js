@@ -142,7 +142,7 @@ document.getElementById("scan-start").addEventListener("click", () => {
 
 chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    files: ['engine.js']
+    files: ['analytics.js', 'engine.js']
 });
 
 

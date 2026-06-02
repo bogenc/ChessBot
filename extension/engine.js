@@ -3,17 +3,90 @@ function startEngine() {
     document.documentElement.setAttribute('data-chessbot-engine-stop', 'false');
     let isBoardFlipped = document.querySelector(".board").classList.contains("flipped");
     let myColor = isBoardFlipped ? "b" : "w";
+    const initialAnalyticsMoves = getMoveElements();
+    globalThis.ChessBotAnalytics?.start({
+        playerColor: myColor,
+        depth: Number(window.args?.depth || 15),
+        extensionVersion: typeof chrome !== "undefined" ? chrome.runtime?.getManifest?.()?.version : undefined,
+        timeControl: inferTimeControl(),
+        currentPly: initialAnalyticsMoves.length,
+        lastMoveText: getMoveText(initialAnalyticsMoves[initialAnalyticsMoves.length - 1]),
+        moves: initialAnalyticsMoves.map(getMoveText)
+    });
     let engineKilled = false;
     let castling = true;
+
+    function stopEngineFromUi(event) {
+        event?.preventDefault?.();
+        document.documentElement.setAttribute('data-chessbot-engine-stop', 'true');
+        stopEngine("manual_stop", { killedBeforeGameEnd: true });
+    }
+
+    function getMoveElements() {
+        return [...document.querySelectorAll("wc-simple-move-list div[data-node]")];
+    }
+
+    function getMoveText(element) {
+        if (!element) return "";
+        const piece = element.querySelector(':scope > .icon-font-chess[data-figurine]')?.dataset.figurine || '';
+        return `${piece}${element.textContent || ""}`.replace(/\s+/g, " ").trim();
+    }
+
+    function getMoveListSnapshot(moveElements = getMoveElements(), source = "move_observer") {
+        const moves = moveElements.map(getMoveText);
+        const totalMoves = moveElements.length;
+        const lastMoveByOpponent = totalMoves > 0 && (
+            (myColor === 'w' && totalMoves % 2 === 0) ||
+            (myColor === 'b' && totalMoves % 2 === 1)
+        );
+
+        return {
+            source,
+            observedAt: Date.now(),
+            ply: totalMoves,
+            moveNumber: Math.floor(totalMoves / 2) + 1,
+            moves,
+            lastMoveText: moves[moves.length - 1] || "",
+            moveByUser: totalMoves > 0 ? !lastMoveByOpponent : false,
+            lastMoveByOpponent,
+            playerColor: myColor
+        };
+    }
+
+    function inferTimeControl() {
+        const candidates = [
+            "[data-cy*='time']",
+            "[class*='time-control']",
+            "[class*='clock']",
+            ".game-time",
+            ".time"
+        ];
+
+        for (const selector of candidates) {
+            const text = document.querySelector(selector)?.textContent?.trim();
+            if (text && /\d/.test(text)) return text.replace(/\s+/g, "_").slice(0, 40);
+        }
+
+        return "unknown";
+    }
+
+    function getGameOverElement() {
+        return document.querySelector(".game-over-modal-content, .game-over-modal-shell-content");
+    }
 
     function removeAllHighlights() {
         document.querySelectorAll(".bestmove").forEach(e=>e.remove());
     }
 
-    function stopEngine() {
+    function stopEngine(reason = "engine_stopped", analyticsOptions = {}) {
         if (engineKilled) return;
         engineKilled = true;
         console.log("Stopping engine...");
+        globalThis.ChessBotAnalytics?.stop(reason, {
+            flush: true,
+            killedBeforeGameEnd: reason !== "gameover",
+            ...analyticsOptions
+        });
         try { engine.terminate(); } catch {}
         try { movesObserver.disconnect(); } catch {}
         try { gameoverObserver.disconnect(); } catch {}
@@ -77,7 +150,7 @@ function startEngine() {
             color = "rgba(255,170,0,0.8)",
             opacity = 0.8
             } = {}) {
-            
+
             const from = squareToPoint(fromSq);
             const to = squareToPoint(toSq);
 
@@ -128,7 +201,7 @@ function startEngine() {
                 <div class="tooltip-text">
                     Depth
                     <depth>0</depth>/${depth}<br>
-                    <a style="text-decoration:underline;cursor:pointer" onclick="document.documentElement.setAttribute('data-chessbot-engine-stop', 'true');">Stop</a>
+                    <a id="chessbot-stop-engine" style="text-decoration:underline;cursor:pointer" href="#">Stop</a>
                 </div>
                 <span class="loader"></span>
             <style>
@@ -176,12 +249,13 @@ function startEngine() {
                         box-shadow: 20px 0 white, 30px 0 white, 40px 0 rgba(255, 255, 255, 0.25);
                     }
                 }
-    
-                   
+
+
             </style>`;
-      
+
       // Append the HTML code to the body
       document.getElementById("board-layout-main").insertAdjacentHTML("beforeend",loaderHTML);
+      document.getElementById("chessbot-stop-engine")?.addEventListener("click", stopEngineFromUi);
 
     }
 
@@ -195,13 +269,15 @@ function startEngine() {
     engine.onmessage = function(event) {
         if (engineKilled) return;
         try {
-            if (event.data.startsWith('bestmove')) {
-                const bestMove = event.data.split(' ')[1];
-                console.log(event.data)
+            const message = event.data;
+            globalThis.ChessBotAnalytics?.recordEngineOutput(message, { observedAt: Date.now() });
+            if (message.startsWith('bestmove')) {
+                const bestMove = message.split(' ')[1];
+                console.log(message)
                 if (bestMove) highlightMoveArrow(bestMove);
-            } else if (event.data.startsWith('info')) {
-                console.log(event.data)
-                reportDepthCycle(event.data.match(/depth (\d+)/)[1])
+            } else if (message.startsWith('info')) {
+                console.log(message)
+                reportDepthCycle(message.match(/depth (\d+)/)[1])
 
             }
         } catch (e) { console.error(e); }
@@ -292,9 +368,10 @@ function startEngine() {
 
     function feedStockfish(fen) {
         if (engineKilled) return;
+        const depth = Number(window.args?.depth || 15);
         const progress = document.getElementById("progress-stockfish-chessbot")
         if (progress === null){
-            reportProgress(window.args?.depth || 15)
+            reportProgress(depth)
         } else {
             console.log("Progress element exists.")
             console.log("Visibility visible")
@@ -307,9 +384,15 @@ function startEngine() {
         const contempt = stanceContemptMap[stance] ?? 0;
         engine.postMessage(`setoption name Contempt value ${contempt}`);
 
+        globalThis.ChessBotAnalytics?.recordEngineSearch({
+            fen,
+            depth,
+            ply: getMoveElements().length,
+            observedAt: Date.now()
+        });
         engine.postMessage(`position fen ${fen}`)
         engine.postMessage('go wtime 300000 btime 300000 winc 2000 binc 2000');
-        engine.postMessage(`go depth ${window.args?.depth || 15}`);
+        engine.postMessage(`go depth ${depth}`);
     }
 
     // -------------------------------------------------
@@ -320,34 +403,34 @@ function startEngine() {
         if (engineKilled) return;
         // stop engine manually
         if (document.documentElement.getAttribute('data-chessbot-engine-stop') === 'true') {
-            stopEngine();
+            stopEngine("manual_stop", { killedBeforeGameEnd: true });
+            return;
         }
 
         console.log("engine alive")
         // remove all highlights (prepare for next highlight)
         removeAllHighlights()
         // Get every move in move list (Cross compatible with bots, coach & online gameplay)
-        const moveElements = document.querySelectorAll("wc-simple-move-list div[data-node]")
+        const moveElements = getMoveElements()
         if (!moveElements.length) return;
-        const totalMoves = moveElements.length;
-        const lastMoveByOpponent = (myColor === 'w' && totalMoves % 2 === 0) || (myColor === 'b' && totalMoves % 2 === 1);
+        const moveSnapshot = getMoveListSnapshot(moveElements, "move_observer");
+        globalThis.ChessBotAnalytics?.recordMoveList(moveSnapshot);
+        const totalMoves = moveSnapshot.ply;
+        const lastMoveByOpponent = moveSnapshot.lastMoveByOpponent;
         console.info("your turn")
 
         // CASTLING AVAILABILITY CHECK
         if (castling) {
 
             // get all moves with piece prefix (e.g Kf7)
-            const allMoves = [...moveElements].map(el => {
-                const piece = el.querySelector(':scope > .icon-font-chess[data-figurine]')?.dataset.figurine || '';
-                return piece + el.textContent.trim();
-            });
+            const allMoves = moveSnapshot.moves;
 
             // only save moves made by you
             const filtered = allMoves.filter((_, i) => i % 2 === (myColor === "w" ? 1 : 0));
 
 
-            // if king has moved or already castled 
-            if (filtered.some(v => v.startsWith("K")) || "O-O" in filtered || "O-O-O" in filtered) {
+            // if king has moved or already castled
+            if (filtered.some(v => v.startsWith("K")) || filtered.includes("O-O") || filtered.includes("O-O-O")) {
                 castling = false;
             }
         }
@@ -363,12 +446,14 @@ function startEngine() {
     // -------------------------------------------------
     // INITIAL CHECK: EXISTING MOVES OR FIRST MOVE
     // -------------------------------------------------
-    const initialMoves = document.querySelectorAll("wc-simple-move-list div[data-node]");
+    const initialMoves = getMoveElements();
+    const initialMoveSnapshot = getMoveListSnapshot(initialMoves, "initial");
+    globalThis.ChessBotAnalytics?.recordMoveList({ ...initialMoveSnapshot, initial: true });
     if (initialMoves.length) {
         console.log("continuing game")
-        const totalMoves = initialMoves.length;
+        const totalMoves = initialMoveSnapshot.ply;
 
-        const lastMoveByOpponent = (myColor === 'w' && totalMoves % 2 === 0) || (myColor === 'b' && totalMoves % 2 === 1);
+        const lastMoveByOpponent = initialMoveSnapshot.lastMoveByOpponent;
         console.info(`Is opponent's turn: ${!lastMoveByOpponent}`)
         console.info("myColor: ", myColor)
         console.info("totalMoves: ", totalMoves)
@@ -386,8 +471,14 @@ function startEngine() {
         if (engineKilled) return;
         for (const mutation of mutationsList) {
             if (mutation.type !== 'childList') continue;
-            if (document.querySelector(".game-over-modal-content")) {
-                stopEngine();
+            // Chess.com updated their game over modal to `game-over-modal-shell-content`.
+            // Might just be A/B testing so `game-over-modal-content` is kept for now.
+            const gameOverElement = getGameOverElement();
+            if (gameOverElement) {
+                stopEngine("gameover", {
+                    killedBeforeGameEnd: false,
+                    gameOverText: gameOverElement.textContent?.trim() || ""
+                });
                 alert("The game has ended. The engine has been stopped.");
                 break;
             }
@@ -396,4 +487,11 @@ function startEngine() {
     gameoverObserver.observe(document.body, { childList:true, subtree:true });
 }
 
-setTimeout(startEngine, 500);
+setTimeout(() => {
+    import(chrome.runtime.getURL("analytics.js"))
+        .then(() => startEngine())
+        .catch((error) => {
+            console.warn("ChessBot analytics unavailable.", error);
+            startEngine();
+        });
+}, 500);
