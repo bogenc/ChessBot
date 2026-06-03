@@ -180,6 +180,8 @@
             this.installIdPromise = getInstallId();
             this.extensionVersion = getExtensionVersion(config.extensionVersion);
             this.playerColor = normalizeColor(config.playerColor);
+            this.playerRating = config.playerRating || "unknown";
+            this.opponentRating = config.opponentRating || "unknown";
             this.selectedDepth = Number(config.depth || globalThis.args?.depth || 15);
             this.sessionId = randomId();
             this.startedAt = now();
@@ -473,7 +475,6 @@
 
         async buildPayload(reason) {
             this.finishCurrentEngineSession();
-
             return {
                 meta: {
                     installId: await this.installIdPromise,
@@ -486,7 +487,9 @@
                     playerColor: this.playerColor,
                     totalMoves: this.currentPly,
                     gameTermination: inferGameTermination(reason || this.terminationReason, this.gameOverText),
-                    finalEvalCP: Math.round(this.lastEvalCP || 0)
+                    finalEvalCP: Math.round(this.lastEvalCP || 0),
+                    playerRating: this.playerRating,
+                    opponentRating: this.opponentRating
                 },
                 engineLifecycle: this.buildEngineLifecycle(),
                 arrowInteraction: this.buildArrowInteraction(),

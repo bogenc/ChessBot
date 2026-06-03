@@ -3,6 +3,7 @@ function startEngine() {
     document.documentElement.setAttribute('data-chessbot-engine-stop', 'false');
     let isBoardFlipped = document.querySelector(".board").classList.contains("flipped");
     let myColor = isBoardFlipped ? "b" : "w";
+    let { playerRating, opponentRating } = inferRatings();
     const initialAnalyticsMoves = getMoveElements();
     globalThis.ChessBotAnalytics?.start({
         playerColor: myColor,
@@ -10,6 +11,8 @@ function startEngine() {
         extensionVersion: typeof chrome !== "undefined" ? chrome.runtime?.getManifest?.()?.version : undefined,
         timeControl: inferTimeControl(),
         currentPly: initialAnalyticsMoves.length,
+        playerRating,
+        opponentRating,
         lastMoveText: getMoveText(initialAnalyticsMoves[initialAnalyticsMoves.length - 1]),
         moves: initialAnalyticsMoves.map(getMoveText)
     });
@@ -54,22 +57,34 @@ function startEngine() {
     }
 
     function inferTimeControl() {
-        const candidates = [
-            "[data-cy*='time']",
-            "[class*='time-control']",
-            "[class*='clock']",
-            ".game-time",
-            ".time"
-        ];
+        if (document.querySelector('svg[data-glyph="game-time-bullet"]')) {
+            return "bullet";
+        }
 
-        for (const selector of candidates) {
-            const text = document.querySelector(selector)?.textContent?.trim();
-            if (text && /\d/.test(text)) return text.replace(/\s+/g, "_").slice(0, 40);
+        if (document.querySelector('svg[data-glyph="game-time-blitz"]')) {
+            return "blitz";
+        }
+
+        if (document.querySelector('svg[data-glyph="game-time-rapid"]')) {
+            return "rapid";
         }
 
         return "unknown";
     }
+    
+    function inferRatings() {
+        // for some reason both black and white have .cc-user-rating-white, possibly due to text color instead of player color?
+        let ratings = document.querySelectorAll(`div.cc-text-medium.cc-user-rating-white[data-cy="user-tagline-rating"]`);
+        let ratingTexts = Array.from(ratings).map(el =>
+            Number(el.textContent.trim().match(/\d+/)?.[0])
+        );
+        // since opponent is displayed on top, it is rendered first in dom
+        let opponentRating = ratingTexts[0];
+        let playerRating = ratingTexts[1];
+        return { playerRating, opponentRating };
+    }
 
+    
     function getGameOverElement() {
         return document.querySelector(".game-over-modal-content, .game-over-modal-shell-content");
     }
