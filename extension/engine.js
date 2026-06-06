@@ -1,5 +1,5 @@
-function startEngine() {
-    console.info("Injected.")
+(() => {
+    console.info("Engine ready.")
     document.documentElement.setAttribute('data-chessbot-engine-stop', 'false');
     let isBoardFlipped = document.querySelector(".board").classList.contains("flipped");
     let myColor = isBoardFlipped ? "b" : "w";
@@ -26,13 +26,13 @@ function startEngine() {
     }
 
     function getMoveElements() {
-        return [...document.querySelectorAll("wc-simple-move-list div[data-node]")];
+        return [...document.querySelectorAll("wc-simple-move-list div[data-node] > span")];
     }
 
     function getMoveText(element) {
         if (!element) return "";
         const piece = element.querySelector(':scope > .icon-font-chess[data-figurine]')?.dataset.figurine || '';
-        return `${piece}${element.textContent || ""}`.replace(/\s+/g, " ").trim();
+        return `${piece}${element.textContent || ""}`.replace(/\s+/g, "").trim();
     }
 
     function getMoveListSnapshot(moveElements = getMoveElements(), source = "move_observer") {
@@ -275,11 +275,40 @@ function startEngine() {
     }
 
     function reportDepthCycle(depth) {
-        console.log("report depth")
         document.querySelector('#progress-stockfish-chessbot .tooltip-text depth').innerHTML = depth;
     }
 
     const engine = new Worker("/bundles/app/js/vendor/jschessengine/stockfish.asm.1abfa10c.js");
+
+    // --- SECONDARY ENGINE FOR QUALITY EVAL ---
+    const evalEngine = new Worker("/bundles/app/js/vendor/jschessengine/stockfish.asm.1abfa10c.js");
+
+    let pendingEval = null;
+
+    evalEngine.onmessage = function (event) {
+        if (!pendingEval) return;
+
+        const msg = event.data;
+
+        if (msg.startsWith("info")) {
+            const match = msg.match(/\bscore\s+cp\s+(-?\d+)/);
+            if (match) {
+                pendingEval.lastEval = Number(match[1]);
+            }
+        }
+
+        if (msg.startsWith("bestmove")) {
+            const result = pendingEval.lastEval || 0;
+
+            window.postMessage({
+                type: "CHESSBOT_EVAL_RESULT",
+                id: pendingEval.id,
+                evalCP: result
+            });
+
+            pendingEval = null;
+        }
+    };
 
     engine.onmessage = function(event) {
         if (engineKilled) return;
@@ -288,12 +317,9 @@ function startEngine() {
             globalThis.ChessBotAnalytics?.recordEngineOutput(message, { observedAt: Date.now() });
             if (message.startsWith('bestmove')) {
                 const bestMove = message.split(' ')[1];
-                console.log(message)
                 if (bestMove) highlightMoveArrow(bestMove);
             } else if (message.startsWith('info')) {
-                console.log(message)
                 reportDepthCycle(message.match(/depth (\d+)/)[1])
-
             }
         } catch (e) { console.error(e); }
     };
@@ -380,6 +406,18 @@ function startEngine() {
         return fen;
     }
 
+    function evaluateMoveQuality(fen, moveUci, id) {
+        if (!fen || !moveUci) return;
+
+        pendingEval = {
+            id,
+            lastEval: 0
+        };
+
+        evalEngine.postMessage(`position fen ${fen} moves ${moveUci}`);
+        evalEngine.postMessage("go depth 10");
+    }
+
 
     function feedStockfish(fen) {
         if (engineKilled) return;
@@ -406,15 +444,24 @@ function startEngine() {
             observedAt: Date.now()
         });
         engine.postMessage(`position fen ${fen}`)
+        engine.postMessage("setoption name MultiPV value 3");
         engine.postMessage('go wtime 300000 btime 300000 winc 2000 binc 2000');
         engine.postMessage(`go depth ${depth}`);
     }
+
+
+    window.addEventListener("message", (event) => {
+        const data = event.data;
+        if (!data || data.type !== "CHESSBOT_REQUEST_EVAL") return;
+
+        evaluateMoveQuality(data.fen, data.move, data.id);
+    });
 
     // -------------------------------------------------
     // MOVE LIST OBSERVER
     // -------------------------------------------------
     const movesObserver = new MutationObserver(() => {
-        console.log("move detected")
+        console.info("Move detected")
         if (engineKilled) return;
         // stop engine manually
         if (document.documentElement.getAttribute('data-chessbot-engine-stop') === 'true') {
@@ -422,7 +469,7 @@ function startEngine() {
             return;
         }
 
-        console.log("engine alive")
+        console.info("Engine alive")
         // remove all highlights (prepare for next highlight)
         removeAllHighlights()
         // Get every move in move list (Cross compatible with bots, coach & online gameplay)
@@ -432,7 +479,6 @@ function startEngine() {
         globalThis.ChessBotAnalytics?.recordMoveList(moveSnapshot);
         const totalMoves = moveSnapshot.ply;
         const lastMoveByOpponent = moveSnapshot.lastMoveByOpponent;
-        console.info("your turn")
 
         // CASTLING AVAILABILITY CHECK
         if (castling) {
@@ -465,7 +511,7 @@ function startEngine() {
     const initialMoveSnapshot = getMoveListSnapshot(initialMoves, "initial");
     globalThis.ChessBotAnalytics?.recordMoveList({ ...initialMoveSnapshot, initial: true });
     if (initialMoves.length) {
-        console.log("continuing game")
+        console.info("Continuing game")
         const totalMoves = initialMoveSnapshot.ply;
 
         const lastMoveByOpponent = initialMoveSnapshot.lastMoveByOpponent;
@@ -500,13 +546,4 @@ function startEngine() {
         }
     });
     gameoverObserver.observe(document.body, { childList:true, subtree:true });
-}
-
-setTimeout(() => {
-    import(chrome.runtime.getURL("analytics.js"))
-        .then(() => startEngine())
-        .catch((error) => {
-            console.warn("ChessBot analytics unavailable.", error);
-            startEngine();
-        });
-}, 500);
+})();

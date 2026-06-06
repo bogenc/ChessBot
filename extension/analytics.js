@@ -1,7 +1,7 @@
 (() => {
-    console.info("Analytics ready")
+    console.info("Analytics ready.")
     const DEFAULT_ENDPOINT = "https://chessbot.bogenc.workers.dev/ingest";
-    const SCHEMA_VERSION = "1.0.0";
+    const SCHEMA_VERSION = "1.1.0";
     const STORAGE_INSTALL_ID_KEY = "chessbotAnalyticsInstallId";
     const ANALYTICS_MESSAGE_TYPE = "CHESSBOT_ANALYTICS_LOG";
 
@@ -18,6 +18,133 @@
         globalThis.crypto?.getRandomValues?.(bytes);
         return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
     };
+
+    function requestEval(fen, move) {
+        return new Promise((resolve) => {
+            const id = Math.random().toString(36).slice(2);
+
+            function handler(event) {
+                if (event.data?.type === "CHESSBOT_EVAL_RESULT" && event.data.id === id) {
+                    window.removeEventListener("message", handler);
+                    resolve(event.data.evalCP);
+                }
+            }
+
+            window.addEventListener("message", handler);
+
+            window.postMessage({
+                type: "CHESSBOT_REQUEST_EVAL",
+                fen,
+                move,
+                id
+            });
+        });
+    }
+
+        // ─── SAN → UCI Conversion ─────────────────────────────────────────────────
+    // Given a FEN and a SAN move string, produce a 4-5 char UCI string (e.g. "e2e4", "e7e8q").
+    // This is needed because the move list DOM gives SAN notation, but we need UCI for
+    // consistent move recording. The FEN at the time the arrow was shown is stored and
+    // passed here so we can resolve disambiguation and find the source square.
+
+    function parseFenBoard(fen) {
+        const parts = (fen || "").split(" ");
+        const ranks = (parts[0] || "").split("/");
+        const turn = parts[1] || "w";
+        const squares = Array.from({ length: 8 }, () => Array(8).fill(""));
+        for (let r = 0; r < 8; r++) {
+            let f = 0;
+            for (const ch of (ranks[7 - r] || "")) {
+                if (/\d/.test(ch)) { f += parseInt(ch, 10); }
+                else { squares[r][f++] = ch; }
+            }
+        }
+        return { squares, turn };
+    }
+
+    function isPathClear(squares, f0, r0, f1, r1) {
+        const sf = Math.sign(f1 - f0), sr = Math.sign(r1 - r0);
+        let f = f0 + sf, r = r0 + sr;
+        while (f !== f1 || r !== r1) {
+            if (squares[r]?.[f]) return false;
+            f += sf; r += sr;
+        }
+        return true;
+    }
+
+    function pieceCanReach(squares, f0, r0, f1, r1, pt, color) {
+        if (f0 === f1 && r0 === r1) return false;
+        const target = squares[r1]?.[f1];
+        // Can't capture own piece
+        if (target && ((color === "w") === (target === target.toUpperCase()))) return false;
+        const df = f1 - f0, dr = r1 - r0, adf = Math.abs(df), adr = Math.abs(dr);
+        switch (pt.toUpperCase()) {
+            case "P": {
+                const dir = color === "w" ? 1 : -1;
+                const startR = color === "w" ? 1 : 6;
+                if (df === 0 && dr === dir && !target) return true;
+                if (df === 0 && dr === 2 * dir && r0 === startR && !target && !squares[r0 + dir]?.[f0]) return true;
+                if (adf === 1 && dr === dir && target) return true; // diagonal capture
+                return false;
+            }
+            case "N": return (adf === 1 && adr === 2) || (adf === 2 && adr === 1);
+            case "B": return adf === adr && adf > 0 && isPathClear(squares, f0, r0, f1, r1);
+            case "R": return (df === 0 || dr === 0) && isPathClear(squares, f0, r0, f1, r1);
+            case "Q": return ((adf === adr && adf > 0) || df === 0 || dr === 0) && isPathClear(squares, f0, r0, f1, r1);
+            case "K": return adf <= 1 && adr <= 1;
+        }
+        return false;
+    }
+
+    function sanToUci(san, fen) {
+        if (!san || !fen) return null;
+        try {
+            const { squares, turn } = parseFenBoard(fen);
+
+            // Castling
+            if (/^(O-O-O|0-0-0)/.test(san)) return turn === "w" ? "e1c1" : "e8c8";
+            if (/^(O-O|0-0)/.test(san)) return turn === "w" ? "e1g1" : "e8g8";
+
+            const clean = san.replace(/[+#!?]/g, "");
+
+            // Promotion suffix (e.g. "e8=Q" or "e8Q")
+            const promMatch = clean.match(/=?([QRBN])$/i);
+            const promo = promMatch ? promMatch[1].toLowerCase() : "";
+            const base = promo ? clean.replace(/=?[QRBN]$/i, "") : clean;
+
+            // Pattern: [KQRBN]? [a-h]? [1-8]? x? [a-h][1-8]
+            const m = base.match(/^([KQRBN])?([a-h])?([1-8])?x?([a-h][1-8])$/i);
+            if (!m) return null;
+
+            const pt = m[1] || "P";
+            const fileHint = m[2] ? m[2].toLowerCase() : null;
+            const rankHint = m[3] || null;
+            const toSq = m[4].toLowerCase();
+            const toF = toSq.charCodeAt(0) - 97;
+            const toR = parseInt(toSq[1], 10) - 1;
+
+            // Match piece character for this color
+            const colorPiece = turn === "w" ? pt.toUpperCase() : pt.toLowerCase();
+            const candidates = [];
+
+            for (let r = 0; r < 8; r++) {
+                for (let f = 0; f < 8; f++) {
+                    if (squares[r][f] !== colorPiece) continue;
+                    if (fileHint && String.fromCharCode(97 + f) !== fileHint) continue;
+                    if (rankHint && (r + 1).toString() !== rankHint) continue;
+                    if (pieceCanReach(squares, f, r, toF, toR, pt, turn)) {
+                        candidates.push(String.fromCharCode(97 + f) + (r + 1));
+                    }
+                }
+            }
+
+            if (candidates.length !== 1) return null;
+            return candidates[0] + toSq + promo;
+        } catch (e) {
+            console.warn("sanToUci failed:", san, e);
+            return san;
+        }
+    }
 
     function getExtensionVersion(fallback) {
         try {
@@ -265,7 +392,6 @@
                     startedAt: observedAt,
                     startedOnMove: search.moveNumber || this.getCurrentMoveNumber(),
                     depthSelected: depth,
-                    evalAtStart: round(this.lastEvalCP / 100, 2),
                     stoppedOnMove: this.getCurrentMoveNumber(),
                     stoppedAt: observedAt
                 };
@@ -293,8 +419,11 @@
                 const info = parseEngineInfo(message);
                 if (info.depth !== null) this.latestDepth = info.depth;
                 if (info.evalCP !== null) {
-                    this.lastEvalCP = info.evalCP;
                     this.multipvScores.set(info.multipv, info.evalCP);
+
+                    if (info.multipv === 1) {
+                        this.lastEvalCP = info.evalCP;
+                    }
                 }
                 return;
             }
@@ -326,6 +455,9 @@
             const scores = [...this.multipvScores.values()].filter((value) => Number.isFinite(value));
             const spread = scores.length > 1 ? Math.max(...scores) - Math.min(...scores) : 0;
             const moveNumber = this.getCurrentMoveNumber();
+            if (this.engineSession && this.engineSession.evalAtStart === undefined) {
+                this.engineSession.evalAtStart = round(this.lastEvalCP / 100, 2);
+            }
 
             this.pendingArrow = {
                 moveNumber,
@@ -334,6 +466,7 @@
                 arrowShownDelayMs: Math.max(0, observedAt - searchStartedAt),
                 arrowShownAt: observedAt,
                 movePlayed: "",
+                fen: this.currentFen,
                 engineTopMove: bestMove,
                 alternativeMoveQualityCP: null,
                 evalAfterMoveCP: Math.round(this.lastEvalCP || 0),
@@ -350,28 +483,54 @@
         completePendingArrow({ ply = this.currentPly, moveText = this.lastMoveText, observedAt = now() } = {}) {
             if (!this.pendingArrow) return;
 
-            const playedMove = moveText || "unknown";
-            const followedArrow = didFollowArrow(playedMove, this.pendingArrow.engineTopMove);
-            const reactionTimeMs = Math.max(0, observedAt - this.pendingArrow.arrowShownAt);
-            const qualityLoss = followedArrow ? 0 : Math.min(300, Math.abs(this.lastEvalCP - this.pendingArrow.evalAfterMoveCP));
+            const uciMove = sanToUci(moveText, this.pendingArrow.fen);
+            const playedMove = uciMove || moveText || "unknown";
 
-            this.recommendations.push({
+            const followedArrow = uciMove
+                ? this.pendingArrow.engineTopMove === uciMove
+                : didFollowArrow(moveText, this.pendingArrow.engineTopMove);
+            const reactionTimeMs = Math.max(0, observedAt - this.pendingArrow.arrowShownAt);
+            //const qualityLoss = followedArrow ? 0 : Math.min(300, Math.abs(this.lastEvalCP - this.pendingArrow.evalAfterMoveCP));
+
+            const base = {
                 moveNumber: this.pendingArrow.moveNumber || this.getCurrentMoveNumber(ply),
                 phase: this.pendingArrow.phase,
                 engineOnAtTurn: true,
                 arrowShownDelayMs: this.pendingArrow.arrowShownDelayMs,
                 reactionTimeMs,
                 followedArrow,
-                movePlayed: followedArrow ? this.pendingArrow.engineTopMove : playedMove,
+                movePlayed: playedMove,
                 engineTopMove: this.pendingArrow.engineTopMove,
-                alternativeMoveQualityCP: followedArrow ? null : Math.round(qualityLoss),
                 evalAfterMoveCP: this.pendingArrow.evalAfterMoveCP,
                 positionComplexity: this.pendingArrow.positionComplexity,
                 evalSpreadTop3: this.pendingArrow.evalSpreadTop3,
                 opponentMoveTimeMs: this.pendingArrow.opponentMoveTimeMs,
                 depthChangedThisTurn: this.pendingArrow.depthChangedThisTurn,
                 newDepth: this.pendingArrow.newDepth
-            });
+            };
+
+            // --- ALWAYS PUSH IMMEDIATELY ---
+            const record = {
+                ...base,
+                alternativeMoveQualityCP: followedArrow ? null : undefined // undefined value is updated later
+            };
+
+            this.recommendations.push(record);
+
+            // --- ASYNC PATCH ---
+            if (!followedArrow && uciMove) {
+                requestEval(this.pendingArrow.fen, uciMove).then((playerEvalRaw) => {
+                    const playerEval = -playerEvalRaw;
+                    
+                    // Read from the local 'base' object instead of 'this.pendingArrow'
+                    const bestEval = base.evalAfterMoveCP;
+
+                    const loss = Math.min(300, Math.abs(bestEval - playerEval));
+
+                    // mutate existing record instead of pushing new one
+                    record.alternativeMoveQualityCP = Math.round(loss);
+                });
+            }
 
             this.pendingArrow = null;
         }
@@ -525,7 +684,6 @@
         return activeSession;
     }
 
-    console.log(globalThis)
     globalThis.ChessBotAnalytics = {
         start,
         recordMoveList: (snapshot) => activeSession?.recordMoveList(snapshot),
@@ -540,5 +698,4 @@
         version: "1.0.0"
     };
 
-    console.log(globalThis.ChessBotAnalytics)
 })();
