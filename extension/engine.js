@@ -74,7 +74,7 @@
     
     function inferRatings() {
         // for some reason both black and white have .cc-user-rating-white, possibly due to text color instead of player color?
-        let ratings = document.querySelectorAll(`div.cc-text-medium.cc-user-rating-white[data-cy="user-tagline-rating"]`);
+        let ratings = document.querySelectorAll(`div.cc-text-medium.cc-user-rating-white`);
         let ratingTexts = Array.from(ratings).map(el =>
             Number(el.textContent.trim().match(/\d+/)?.[0])
         );
