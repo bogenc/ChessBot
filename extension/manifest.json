@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "ChessBot",
     "description": "Real-time stockfish chess analyzer.",
-    "version": "5.2.2",
+    "version": "5.2.3",
     "icons": {
         "16": "icon.png",
         "48": "icon.png",

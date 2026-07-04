@@ -1,0 +1,156 @@
+
+const REVIEW_URL = "https://addons.mozilla.org/en-US/firefox/addon/chessbot/reviews/";
+const PRIVACY_URL = "https://addons.mozilla.org/en-US/firefox/addon/chessbot/privacy/";
+const SHARE_URL = "https://addons.mozilla.org/en-US/firefox/addon/chessbot/";
+
+const translations = {
+    "en-US": {
+        nativeName: "English (US)",
+        title: "ChessBot updated!",
+        versionLabel: "Version",
+        devIntro: `Hi! I am the developer of ChessBot, Bora. If you enjoy ChessBot, please <a href="${REVIEW_URL}">rate our extension</a>. It takes less than a minute, and helps me a lot 😊`,
+        changelogLabel: "Changelog",
+        item1: `⚖️<a href="${PRIVACY_URL}">Privacy policy</a> has substantially changed. Data from past & future games may be used in public research datasets. Details and opt-out available.`,
+        item2: "🐛 Bugs smashed for a smoother experience",
+        item3: "⌛ Changelog added for more transparency",
+        suggestionsLabel: "Suggestions",
+        suggestionsText: `Do you have an 🤩 awesome idea? <a href="${SHARE_URL}">Share it</a> with us, maybe we will add it to the next ChessBot version.`,
+        seeYouLabel: "See you next time",
+        farewellText: "🏖️ Have fun, gain some elo, touch grass. And, don't cheat :-(",
+        footer: "Translated into 🇺🇸 for you ❤️"
+    },
+    "en-GB": {
+        nativeName: "English (British)",
+        title: "ChessBot updated!",
+        versionLabel: "Version",
+        devIntro: `Hi! I am the developer of ChessBot, Bora. If you enjoy ChessBot, please <a href="${REVIEW_URL}">rate our extension</a>. It takes less than a minute, and helps me a lot 😊`,
+        changelogLabel: "Changelog",
+        item1: `⚖️<a href="${PRIVACY_URL}">Privacy policy</a> has substantially changed. Data from past & future games may be used in public research datasets. Details and opt-out available.`,
+        item2: "🐛 Bugs squashed for a smoother experience",
+        item3: "⌛ Changelog added for more transparency",
+        suggestionsLabel: "Suggestions",
+        suggestionsText: `Got a 🤩 brilliant idea? <a href="${SHARE_URL}">Share it</a> with us, maybe we'll add it to the next ChessBot version.`,
+        seeYouLabel: "See you next time",
+        farewellText: "🏖️ Have fun, gain some elo, get some fresh air. And, don't cheat :-(",
+        footer: "Translated into 🇬🇧 for you ❤️"
+    },
+    "ru": {
+        nativeName: "Русский",
+        title: "ChessBot обновлён!",
+        versionLabel: "Версия",
+        devIntro: `Привет! Я разработчик ChessBot, Бора. Если вам нравится ChessBot, пожалуйста, <a href="${REVIEW_URL}">оцените наше расширение</a>. Это займёт меньше минуты и очень мне поможет 😊`,
+        changelogLabel: "Список изменений",
+        item1: `⚖️<a href="${PRIVACY_URL}">Политика конфиденциальности</a> существенно изменилась. Прошлые и будущие данные игр могут использоваться в публичных исследовательских наборах данных. Подробности и возможность отказа доступны.`,
+        item2: "🐛 Исправлены баги для более плавной работы",
+        item3: "⌛ Добавлен список изменений для большей прозрачности",
+        suggestionsLabel: "Предложения",
+        suggestionsText: `Есть 🤩 отличная идея? <a href="${SHARE_URL}">Поделитесь ею</a> с нами — возможно, добавим её в следующую версию ChessBot.`,
+        seeYouLabel: "До встречи",
+        farewellText: "🏖️ Получайте удовольствие, поднимайте рейтинг, гуляйте на улице. И не читерите :-(",
+        footer: "Переведено на 🇷🇺 специально для вас ❤️"
+    },
+    "de": {
+        nativeName: "Deutsch",
+        title: "ChessBot aktualisiert!",
+        versionLabel: "Version",
+        devIntro: `Hallo! Ich bin der Entwickler von ChessBot, Bora. Wenn dir ChessBot gefällt, <a href="${REVIEW_URL}">bewerte bitte unsere Erweiterung</a>. Es dauert weniger als eine Minute und hilft mir sehr 😊`,
+        changelogLabel: "Änderungsprotokoll",
+        item1: `⚖️Die <a href="${PRIVACY_URL}">Datenschutzrichtlinie</a> hat sich wesentlich geändert. Vergangene und zukünftige Partiedaten können in öffentlichen Forschungsdatensätzen verwendet werden. Details und Opt-out verfügbar.`,
+        item2: "🐛 Fehler behoben für ein reibungsloseres Erlebnis",
+        item3: "⌛ Änderungsprotokoll für mehr Transparenz hinzugefügt",
+        suggestionsLabel: "Vorschläge",
+        suggestionsText: `Hast du eine 🤩 großartige Idee? <a href="${SHARE_URL}">Teile sie</a> mit uns, vielleicht fügen wir sie der nächsten ChessBot-Version hinzu.`,
+        seeYouLabel: "Bis zum nächsten Mal",
+        farewellText: "🏖️ Viel Spaß, sammle etwas Elo, geh mal an die frische Luft. Und bitte nicht schummeln :-(",
+        footer: "Für dich ins Deutsche übersetzt 🇩🇪 ❤️"
+    },
+    "fr": {
+        nativeName: "Français",
+        title: "ChessBot mis à jour !",
+        versionLabel: "Version",
+        devIntro: `Salut ! Je suis Bora, le développeur de ChessBot. Si vous aimez ChessBot, merci de <a href="${REVIEW_URL}">noter notre extension</a>. Cela prend moins d'une minute et m'aide énormément 😊`,
+        changelogLabel: "Journal des modifications",
+        item1: `⚖️La <a href="${PRIVACY_URL}">politique de confidentialité</a> a considérablement changé. Les données des parties passées et futures peuvent être utilisées dans des jeux de données de recherche publics. Détails et option de retrait disponibles.`,
+        item2: "🐛 Des bugs corrigés pour une expérience plus fluide",
+        item3: "⌛ Journal des modifications ajouté pour plus de transparence",
+        suggestionsLabel: "Suggestions",
+        suggestionsText: `Vous avez une 🤩 idée géniale ? <a href="${SHARE_URL}">Partagez-la</a> avec nous, peut-être l'ajouterons-nous à la prochaine version de ChessBot.`,
+        seeYouLabel: "À la prochaine",
+        farewellText: "🏖️ Amusez-vous, gagnez de l'elo, sortez prendre l'air. Et ne trichez pas :-(",
+        footer: "Traduit en français pour vous 🇫🇷 ❤️"
+    },
+    "tr": {
+        nativeName: "Türkçe",
+        title: "ChessBot güncellendi!",
+        versionLabel: "Sürüm",
+        devIntro: `Selam! Ben ChessBot'un geliştiricisi Bora. ChessBot'tan keyif alıyorsan lütfen <a href="${REVIEW_URL}">eklentimizi değerlendir</a>. Bir dakikadan az sürer ve bana çok yardımcı olur 😊`,
+        changelogLabel: "Değişiklik günlüğü",
+        item1: `⚖️<a href="${PRIVACY_URL}">Gizlilik politikası</a> önemli ölçüde değişti. Geçmiş ve gelecekteki oyun verileri kamuya açık araştırma veri kümelerinde kullanılabilir. Detaylar ve devre dışı bırakma seçeneği mevcuttur.`,
+        item2: "🐛 Daha akıcı bir deneyim için hatalar giderildi",
+        item3: "⌛ Daha fazla şeffaflık için değişiklik günlüğü eklendi",
+        suggestionsLabel: "Öneriler",
+        suggestionsText: `🤩 Harika bir fikrin mi var? Bizimle <a href="${SHARE_URL}">paylaş</a>, belki bir sonraki ChessBot sürümüne ekleriz.`,
+        seeYouLabel: "Bir dahaki sefere görüşürüz",
+        farewellText: "🏖️ İyi eğlenceler, biraz elo kas, biraz da çimene dokun. Ve hile yapma :-(",
+        footer: "Senin için 🇹🇷 diline çevrildi ❤️"
+    },
+    "pl": {
+        nativeName: "Polski",
+        title: "ChessBot zaktualizowany!",
+        versionLabel: "Wersja",
+        devIntro: `Cześć! Jestem twórcą ChessBota, Bora. Jeśli podoba Ci się ChessBot, <a href="${REVIEW_URL}">oceń nasze rozszerzenie</a>. Zajmie to mniej niż minutę i bardzo mi pomoże 😊`,
+        changelogLabel: "Lista zmian",
+        item1: `⚖️<a href="${PRIVACY_URL}">Polityka prywatności</a> uległa istotnym zmianom. Dane z przeszłych i przyszłych gier mogą być wykorzystywane w publicznych zbiorach danych badawczych. Szczegóły i możliwość rezygnacji są dostępne.`,
+        item2: "🐛 Naprawiono błędy dla płynniejszego działania",
+        item3: "⌛ Dodano listę zmian dla większej przejrzystości",
+        suggestionsLabel: "Sugestie",
+        suggestionsText: `Masz 🤩 świetny pomysł? <a href="${SHARE_URL}">Podziel się nim</a> z nami, może dodamy go w kolejnej wersji ChessBota.`,
+        seeYouLabel: "Do zobaczenia następnym razem",
+        farewellText: "🏖️ Baw się dobrze, zdobądź trochę elo, wyjdź na chwilę na powietrze. I nie oszukuj :-(",
+        footer: "Przetłumaczone na polski specjalnie dla Ciebie 🇵🇱 ❤️"
+    }
+};
+
+const SUPPORTED = Object.keys(translations);
+const DEFAULT_LANG = "en-US";
+
+function pickInitialLang() {
+    const browserLangs = navigator.languages || [navigator.language || DEFAULT_LANG];
+    for (const bl of browserLangs) {
+        const exact = SUPPORTED.find(l => l.toLowerCase() === bl.toLowerCase());
+        if (exact) return exact;
+    }
+    // fall back to matching just the base subtag (e.g. "de-AT" -> "de", "en-CA" -> "en-US")
+    for (const bl of browserLangs) {
+        const base = bl.split("-")[0].toLowerCase();
+        const match = SUPPORTED.find(l => l.split("-")[0].toLowerCase() === base);
+        if (match) return match;
+    }
+    return DEFAULT_LANG;
+}
+
+function applyLang(lang) {
+    const t = translations[lang] || translations[DEFAULT_LANG];
+    document.title = t.title;
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (t[key] !== undefined) el.innerHTML = t[key];
+    });
+    const select = document.getElementById("lang-select");
+    if (select.value !== lang) select.value = lang;
+}
+
+function buildSelect() {
+    const select = document.getElementById("lang-select");
+    SUPPORTED.forEach(lang => {
+        const opt = document.createElement("option");
+        opt.value = lang;
+        opt.textContent = translations[lang].nativeName;
+        select.appendChild(opt);
+    });
+    select.addEventListener("change", () => applyLang(select.value));
+}
+
+buildSelect();
+applyLang(pickInitialLang());
