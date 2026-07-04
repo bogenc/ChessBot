@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "ChessBot",
     "description": "Real-time stockfish chess analyzer.",
-    "version": "5.2",
+    "version": "5.2.2",
     "icons": {
         "16": "icon.png",
         "48": "icon.png",
@@ -14,6 +14,9 @@
     ],
     "action": {
         "default_popup": "popup.html"
+    },
+    "background": {
+        "scripts": ["background.js"]
     },
     "web_accessible_resources": [{
         "resources": ["engine.js", "analytics.js"],
